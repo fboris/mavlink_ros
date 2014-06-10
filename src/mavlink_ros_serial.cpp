@@ -34,11 +34,11 @@
 #include "ros/ros.h"
 
 #include "mavlink_ros/Mavlink.h"
+#include "mavlink_ros/Attitude.h"
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/MagneticField.h"
 #include "sensor_msgs/Temperature.h"
 #include "sensor_msgs/FluidPressure.h"
-
 #include "mavlink.h"
 #include <glib.h>
 
@@ -78,17 +78,19 @@ int compid = 110;
 int serial_compid = 0;
 std::string port = "/dev/ttyUSB0";              ///< The serial port name, e.g. /dev/ttyUSB0
 bool silent = false;              ///< Wether console output should be enabled
-bool verbose = false;             ///< Enable verbose output
-bool debug = false;               ///< Enable debug functions and output
+bool verbose = true;             ///< Enable verbose output
+bool debug = true;               ///< Enable debug functions and output
 bool pc2serial = true;			  ///< Enable PC to serial push mode (send more stuff from pc over serial)
 int fd;
 
+#define TO_DEGREES(rad) ( (double)57.2957795*rad)
 /**
  * Grabs all mavlink-messages from the ROS-Topic "mavlink" and publishes them on ROS
  */
 
 ros::Subscriber mavlink_sub;
 ros::Publisher mavlink_pub;
+ros::Publisher attitude_pub;
 ros::Publisher imu_pub;
 ros::Publisher imu_raw_pub;
 ros::Publisher mag_pub;
@@ -256,14 +258,14 @@ bool setup_port(int fd, int baud, int data_bits, int stop_bits, bool parity, boo
       // These two non-standard (by the 70'ties ) rates are fully supported on
       // current Debian and Mac OS versions (tested since 2010).
     case 460800:
-      if (cfsetispeed(&config, 460800) < 0 || cfsetospeed(&config, 460800) < 0)
+      if (cfsetispeed(&config, B460800) < 0 || cfsetospeed(&config, B460800) < 0)
       {
         fprintf(stderr, "\nERROR: Could not set desired baud rate of %d Baud\n", baud);
         return false;
       }
       break;
     case 921600:
-      if (cfsetispeed(&config, 921600) < 0 || cfsetospeed(&config, 921600) < 0)
+      if (cfsetispeed(&config, B921600) < 0 || cfsetospeed(&config, B921600) < 0)
       {
         fprintf(stderr, "\nERROR: Could not set desired baud rate of %d Baud\n", baud);
         return false;
@@ -400,16 +402,21 @@ void* serial_wait(void* serial_ptr)
          */
         case MAVLINK_MSG_ID_ATTITUDE:
         {
-          if (imu_pub.getNumSubscribers() > 0)
+          if (imu_pub.getNumSubscribers() >= 0)
           {
+            
             mavlink_attitude_t att;
+            mavlink_ros::Attitude rosmavlink_attitude;
             mavlink_msg_attitude_decode(&message, &att);
 
             sensor_msgs::ImuPtr imu_msg(new sensor_msgs::Imu);
-
+            
             angle2quaternion(att.roll, -att.pitch, -att.yaw, &(imu_msg->orientation.w), &(imu_msg->orientation.x),
                              &(imu_msg->orientation.y), &(imu_msg->orientation.z));
-
+            /*attitude*/
+            rosmavlink_attitude.roll = TO_DEGREES(att.roll);
+            rosmavlink_attitude.pitch = TO_DEGREES(att.pitch);
+            printf("ROLL:%f, PITCH:%f\r\n",rosmavlink_attitude.roll , rosmavlink_attitude.pitch);
             // TODO: check/verify that these are body-fixed
             imu_msg->angular_velocity.x = att.rollspeed;
             imu_msg->angular_velocity.y = -att.pitchspeed;
@@ -438,7 +445,10 @@ void* serial_wait(void* serial_ptr)
             imu_msg->header.seq = imu_raw.time_usec / 1000;
             imu_msg->header.stamp = ros::Time::now();
 
+            rosmavlink_attitude.header.stamp = ros::Time::now();
+
             imu_pub.publish(imu_msg);
+            attitude_pub.publish(rosmavlink_attitude);
           }
         }
           break;
@@ -632,9 +642,10 @@ int main(int argc, char **argv)
   ros::NodeHandle nh("fcu");
   imu_pub = nh.advertise<sensor_msgs::Imu>("imu", 10);
   mag_pub = nh.advertise<sensor_msgs::MagneticField>("mag", 10);
+  attitude_pub = nh.advertise<mavlink_ros::Attitude>("attitude",1000);
 
   ros::NodeHandle raw_nh("fcu/raw");
-  imu_raw_pub = raw_nh.advertise<sensor_msgs::Imu>("imu", 10);
+  imu_raw_pub = raw_nh.advertise<sensor_msgs::Imu>("imu", 1000);
 
   GThread* serial_thread;
   GError* err;
