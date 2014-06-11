@@ -425,7 +425,7 @@ void* serial_wait(void* serial_ptr)
             // take this from imu high res message, this is supposed to arrive before this one and should pretty much be in sync then
             imu_msg->linear_acceleration.x = imu_raw.xacc;
             imu_msg->linear_acceleration.y = -imu_raw.yacc;
-            imu_msg->linear_acceleration.z = -imu_raw.zacc;
+            imu_msg->linear_acceleration.z = imu_raw.zacc;
 
             // TODO: can we fill in the covariance here from a parameter that we set from the specs/experience?
             for (sensor_msgs::Imu::_orientation_covariance_type::iterator it = imu_msg->orientation_covariance.begin();
@@ -472,13 +472,13 @@ void* serial_wait(void* serial_ptr)
 
             sensor_msgs::ImuPtr imu_msg(new sensor_msgs::Imu);
 
-            imu_msg->angular_velocity.x = imu_raw.xgyro;
-            imu_msg->angular_velocity.y = -imu_raw.ygyro;
-            imu_msg->angular_velocity.z = -imu_raw.zgyro;
+            imu_msg->angular_velocity.x = - imu_raw.ygyro;
+            imu_msg->angular_velocity.y = - imu_raw.zgyro;
+            imu_msg->angular_velocity.z = imu_raw.xgyro;
 
-            imu_msg->linear_acceleration.x = imu_raw.xacc;
-            imu_msg->linear_acceleration.y = -imu_raw.yacc;
-            imu_msg->linear_acceleration.z = -imu_raw.zacc;
+            imu_msg->linear_acceleration.x = imu_raw.yacc;
+            imu_msg->linear_acceleration.y = imu_raw.zacc;
+            imu_msg->linear_acceleration.z = -imu_raw.xacc;
 
             // TODO: can we fill in the covariance here from a parameter that we set from the specs/experience?
             for (sensor_msgs::Imu::_angular_velocity_covariance_type::iterator it =
