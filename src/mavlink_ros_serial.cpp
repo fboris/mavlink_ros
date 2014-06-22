@@ -40,6 +40,7 @@
 #include "sensor_msgs/Temperature.h"
 #include "sensor_msgs/FluidPressure.h"
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <svo_msgs/Info.h>
 #include "mavlink.h"
 #include <glib.h>
 
@@ -584,6 +585,10 @@ void svo_poseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& 
                                 pose_msg->pose.pose.position.z);
   
 }
+void svo_infoCallback(const svo_msgs::Info::ConstPtr& msg)
+{
+  printf("quaility = %d", msg->tracking_quality);
+}
 
 int main(int argc, char **argv)
 {
@@ -658,7 +663,7 @@ int main(int argc, char **argv)
   imu_raw_pub = raw_nh.advertise<sensor_msgs::Imu>("imu", 1000);
 
   ros::Subscriber sub = mavlink_nh.subscribe("/svo/pose", 1000, svo_poseCallback);
-
+  ros::Subscriber sub2 = mavlink_nh.subscribe("/svo/info", 1000, svo_infoCallback);
   GThread* serial_thread;
   GError* err;
   if (!g_thread_supported())
