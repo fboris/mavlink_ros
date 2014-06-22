@@ -39,6 +39,7 @@
 #include "sensor_msgs/MagneticField.h"
 #include "sensor_msgs/Temperature.h"
 #include "sensor_msgs/FluidPressure.h"
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include "mavlink.h"
 #include <glib.h>
 
@@ -574,6 +575,15 @@ void mavlinkCallback(const mavlink_ros::Mavlink &mavlink_ros_msg)
   if (messageLength != written)
     fprintf(stderr, "ERROR: Wrote %d bytes but should have written %d\n", written, messageLength);
 }
+void svo_poseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& pose_msg)
+{
+
+  printf("got message!\r\n");
+  printf("x = %f, y= %f, z = %f",pose_msg->pose.pose.position.x,
+                                pose_msg->pose.pose.position.y,
+                                pose_msg->pose.pose.position.z);
+  
+}
 
 int main(int argc, char **argv)
 {
@@ -646,6 +656,8 @@ int main(int argc, char **argv)
 
   ros::NodeHandle raw_nh("fcu/raw");
   imu_raw_pub = raw_nh.advertise<sensor_msgs::Imu>("imu", 1000);
+
+  ros::Subscriber sub = mavlink_nh.subscribe("/svo/pose", 1000, svo_poseCallback);
 
   GThread* serial_thread;
   GError* err;
